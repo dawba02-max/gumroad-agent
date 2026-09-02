@@ -1,0 +1,46 @@
+Gumroad CLI Authentication Setup
+=================================
+
+1. Run the login command
+------------------------
+   /home/danao21/.local/bin/gumroad auth login
+
+   This will:
+   - Open your browser to Gumroad's login page
+   - Ask you to approve the app
+   - Store the token automatically
+
+
+2. Verify authentication
+------------------------
+   /home/danao21/.local/bin/gumroad auth status
+
+
+3. Get the token (if needed)
+----------------------------
+   /home/danao21/.local/bin/gumroad auth token
+
+
+4. Update config.json
+---------------------
+   Edit config.json and paste the token:
+   {
+     "gumroad": {
+       "accessToken": "PASTE_YOUR_TOKEN_HERE"
+     }
+   }
+
+   Or export as env var:
+   export GUMROAD_ACCESS_TOKEN=your_token_here
+
+
+5. Test publish
+---------------
+   node workflow.js create "test template"
+   node workflow.js approve <job_id>
+
+
+Add to PATH (optional)
+----------------------
+   echo 'export PATH="$PATH:/home/danao21/.local/bin"' >> ~/.bashrc
+   source ~/.bashrc

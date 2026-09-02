@@ -1,0 +1,43 @@
+OpenCode Go Budget Plan
+=======================
+
+Total Monthly Budget: ~$475
+Current Usage: ~$4.53 (20% in 1 session)
+
+
+Daily Limits (Recommended)
+--------------------------
+  Hy4 preview      $1.00/day   (use for complex tasks only)
+  Kimi K3          $0.50/day   (use when needed)
+  Qwen3.7 Max      $1.00/day   (quality tasks)
+  Qwen3.8 Max      $0.50/day   (quality tasks)
+  GLM 5.3          $0.50/day   (quality tasks)
+  All others       $2.00/day   (default)
+
+
+Cheap Alternatives for Routine Tasks
+-------------------------------------
+  deepseek-v4-flash   $0.22/$0.66 per 1M tokens
+  mimo-v2.5           $0.14/$0.28 per 1M tokens
+  glm-5.3-flash       $0.15/$0.50 per 1M tokens
+  qwen3.8-flash       $0.15/$0.47 per 1M tokens
+
+
+When to Use Expensive Models
+-----------------------------
+  Hy4 preview     → Multi-step coding, complex reasoning
+  Kimi K3         → When you need top-tier quality
+  Qwen3.7 Max     → Important decisions, architecture
+  GLM 5.3         → When flash models aren't enough
+
+
+Check Usage
+-----------
+  curl http://localhost:8787/usage/dollars | jq
+
+
+Alert Thresholds
+----------------
+  50% used → Start using cheaper alternatives
+  75% used → Switch to free/cheap models only
+  90% used → Stop non-essential tasks

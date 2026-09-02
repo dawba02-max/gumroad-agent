@@ -16,7 +16,9 @@ data/deploy/
 # Environment and secrets
 .env
 .env.local
+config.json
 config.local.json
+providers.yaml
 
 # OS files
 .DS_Store
