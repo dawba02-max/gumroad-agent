@@ -7,11 +7,11 @@
     "memoryAgent": "../../agents/memory_agent"
   },
   "github": {
-    "_comment": "Used by deployToGitHub() in workflow.js for demo hosting.",
+    "_comment": "GitHub config for source repo + Pages deploy. Set username and repo to enable auto-upload.",
     "username": "",
     "repo": "",
-    "branch": "gh-pages",
-    "pagesBaseUrl": ""
+    "branch": "main",
+    "pagesBranch": "gh-pages"
   },
   "gumroad": {
     "_comment": "Get an access token at gumroad.com/settings/advanced under Applications. Prefer the GUMROAD_ACCESS_TOKEN env var over storing it here.",

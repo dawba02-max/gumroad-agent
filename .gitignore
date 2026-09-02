@@ -4,6 +4,7 @@ node_modules/
 # Output files
 output/
 data/jobs/
+data/pages/
 data/deploy/
 
 # Generated templates (built at runtime)

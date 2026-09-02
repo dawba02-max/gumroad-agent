@@ -183,11 +183,10 @@ function buildTemplate(job) {
 function deployToGitHub(job) {
   jobStore.transition(job, 'DEPLOYING');
   
-  const { username, repo, branch, pagesBaseUrl } = config.github;
+  const { username, repo, branch } = config.github;
   
   if (!username || !repo) {
-    // GitHub not configured, use placeholder
-    const url = `${pagesBaseUrl || 'https://example.github.io'}/${job.job_id}/`;
+    const url = `https://example.github.io/${job.job_id}/`;
     job.demo_url = url;
     jobStore.saveJob(job);
     logToMemory(job, 'Deployed demo (GitHub not configured)', { demo_url: url });
@@ -195,60 +194,121 @@ function deployToGitHub(job) {
   }
   
   try {
-    // Create a temporary directory for the GitHub Pages deployment
-    const deployDir = path.join(__dirname, 'data', 'deploy', job.job_id);
-    if (!fs.existsSync(deployDir)) {
-      fs.mkdirSync(deployDir, { recursive: true });
-    }
+    // 1. Push source code to main repo
+    pushSourceCode(job);
     
-    // Copy the built template files to the deploy directory
-    const sourceDir = path.join(AGENT_PATHS.builderAgent, 'output', job.job_id);
-    if (fs.existsSync(sourceDir)) {
-      const files = fs.readdirSync(sourceDir);
-      for (const file of files) {
-        fs.copyFileSync(path.join(sourceDir, file), path.join(deployDir, file));
+    // 2. Deploy template to GitHub Pages
+    const url = deployToPages(job, username, repo, branch);
+    
+    return url;
+  } catch (error) {
+    logError(job, `GitHub deployment failed: ${error.message}`);
+    const url = `https://${username}.github.io/${repo}/${job.job_id}/`;
+    job.demo_url = url;
+    jobStore.saveJob(job);
+    logToMemory(job, 'Deployed demo (GitHub push failed)', { demo_url: url });
+    return url;
+  }
+}
+
+function pushSourceCode(job) {
+  const sourceDir = __dirname;
+  const gitDir = path.join(sourceDir, '.git');
+  
+  if (!fs.existsSync(gitDir)) {
+    logToMemory(job, 'No git repo found, skipping source push');
+    return;
+  }
+  
+  try {
+    execSync('git add -A', { cwd: sourceDir, stdio: 'pipe' });
+    
+    // Only commit if there are changes
+    const status = execSync('git status --porcelain', { cwd: sourceDir, encoding: 'utf8' });
+    if (status.trim()) {
+      execSync(`git commit -m "Auto: Update after job ${job.job_id}"`, { cwd: sourceDir, stdio: 'pipe' });
+      execSync('git push origin main', { cwd: sourceDir, stdio: 'pipe' });
+      logToMemory(job, 'Source code pushed to GitHub');
+    }
+  } catch (error) {
+    logError(job, `Source push failed: ${error.message}`);
+  }
+}
+
+function deployToPages(job, username, repo, mainBranch) {
+  const sourceDir = __dirname;
+  const pagesBranch = 'gh-pages';
+  const jobFilesDir = path.join(AGENT_PATHS.builderAgent, 'output', job.job_id);
+  
+  if (!fs.existsSync(jobFilesDir)) {
+    throw new Error(`No built files found for job ${job.job_id}`);
+  }
+  
+  // Create a temp directory for gh-pages content
+  const pagesDir = path.join(__dirname, 'data', 'pages');
+  if (!fs.existsSync(pagesDir)) {
+    fs.mkdirSync(pagesDir, { recursive: true });
+  }
+  
+  try {
+    // Clone or init gh-pages branch
+    const gitDir = path.join(pagesDir, '.git');
+    if (fs.existsSync(gitDir)) {
+      // Reset existing repo
+      execSync('git fetch origin', { cwd: pagesDir, stdio: 'pipe' });
+      execSync(`git checkout ${pagesBranch}`, { cwd: pagesDir, stdio: 'pipe' });
+      execSync('git rm -rf .', { cwd: pagesDir, stdio: 'pipe' });
+    } else {
+      // Clone just the gh-pages branch
+      const remoteUrl = `https://github.com/${username}/${repo}.git`;
+      try {
+        execSync(`git clone -b ${pagesBranch} --single-branch ${remoteUrl} .`, { cwd: pagesDir, stdio: 'pipe' });
+      } catch {
+        // Branch doesn't exist yet, initialize fresh
+        execSync('git init', { cwd: pagesDir, stdio: 'pipe' });
+        execSync(`git checkout -b ${pagesBranch}`, { cwd: pagesDir, stdio: 'pipe' });
+        execSync(`git remote add origin ${remoteUrl}`, { cwd: pagesDir, stdio: 'pipe' });
       }
     }
     
-    // Initialize git repo if not already initialized
-    const gitDir = path.join(deployDir, '.git');
-    if (!fs.existsSync(gitDir)) {
-      execSync('git init', { cwd: deployDir, stdio: 'pipe' });
-      execSync(`git checkout -b ${branch}`, { cwd: deployDir, stdio: 'pipe' });
+    // Copy job files to pages directory
+    const files = fs.readdirSync(jobFilesDir);
+    for (const file of files) {
+      fs.copyFileSync(path.join(jobFilesDir, file), path.join(pagesDir, file));
     }
     
-    // Add all files
-    execSync('git add .', { cwd: deployDir, stdio: 'pipe' });
-    
-    // Commit
-    execSync(`git commit -m "Deploy ${job.job_id}"`, { cwd: deployDir, stdio: 'pipe' });
-    
-    // Add remote (force update if exists)
-    const remoteUrl = `https://github.com/${username}/${repo}.git`;
-    try {
-      execSync(`git remote set-url origin ${remoteUrl}`, { cwd: deployDir, stdio: 'pipe' });
-    } catch {
-      execSync(`git remote add origin ${remoteUrl}`, { cwd: deployDir, stdio: 'pipe' });
+    // Create index.html redirect if it doesn't exist
+    const indexFile = path.join(pagesDir, 'index.html');
+    if (!fs.existsSync(indexFile)) {
+      const indexHtml = `<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="refresh" content="0; url=${job.job_id}/">
+  <title>Redirecting...</title>
+</head>
+<body>
+  <p>Redirecting to <a href="${job.job_id}/">${job.job_id}</a>...</p>
+</body>
+</html>`;
+      fs.writeFileSync(indexFile, indexHtml);
     }
     
-    // Push to GitHub Pages branch
-    execSync(`git push -f origin ${branch}`, { cwd: deployDir, stdio: 'pipe' });
+    // Add, commit, push
+    execSync('git add -A', { cwd: pagesDir, stdio: 'pipe' });
+    execSync(`git commit -m "Deploy ${job.job_id}" --allow-empty`, { cwd: pagesDir, stdio: 'pipe' });
+    execSync(`git push -f origin ${pagesBranch}`, { cwd: pagesDir, stdio: 'pipe' });
     
-    // Construct the GitHub Pages URL
     const url = `https://${username}.github.io/${repo}/${job.job_id}/`;
     job.demo_url = url;
     jobStore.saveJob(job);
     
     logToMemory(job, 'Deployed to GitHub Pages', { demo_url: url, repo: `${username}/${repo}` });
     return url;
-  } catch (error) {
-    logError(job, `GitHub deployment failed: ${error.message}`);
-    // Fallback to placeholder URL
-    const url = `${pagesBaseUrl || 'https://example.github.io'}/${job.job_id}/`;
-    job.demo_url = url;
-    jobStore.saveJob(job);
-    logToMemory(job, 'Deployed demo (GitHub push failed)', { demo_url: url });
-    return url;
+  } finally {
+    // Clean up pages directory
+    try {
+      execSync('rm -rf .git *', { cwd: pagesDir, stdio: 'pipe' });
+    } catch {}
   }
 }
 
