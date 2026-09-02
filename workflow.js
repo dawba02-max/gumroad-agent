@@ -271,6 +271,10 @@ function deployToPages(job, username, repo, mainBranch) {
       }
     }
     
+    // Set git config for this repo
+    execSync('git config user.email "dawba02@gmail.com"', { cwd: pagesDir, stdio: 'pipe' });
+    execSync('git config user.name "danao21"', { cwd: pagesDir, stdio: 'pipe' });
+    
     // Copy job files to pages directory
     const files = fs.readdirSync(jobFilesDir);
     for (const file of files) {
