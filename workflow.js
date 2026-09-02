@@ -361,16 +361,21 @@ Reply:
 
 async function publishToGumroad(job) {
   jobStore.transition(job, 'PUBLISHING');
-  const result = await gumroad.createProduct(job.listing_draft);
+  
+  // Pass the zip file path so gumroad_client uploads it automatically
+  const result = await gumroad.createProduct({
+    ...job.listing_draft,
+    filePath: job.package_path
+  });
+  
   if (result && result.success !== false) {
     job.gumroad_product_id = result.product ? result.product.id : null;
     jobStore.transition(job, 'PUBLISHED');
     logToMemory(job, 'Published to Gumroad', { product_id: job.gumroad_product_id });
-    console.log(`Published. NOTE: file upload to the product still needs to be`);
-    console.log(`done manually via the Gumroad dashboard — see lib/gumroad_client.js header.`);
-    console.log(`Package to upload: ${job.package_path}`);
+    console.log(`Published! Product ID: ${job.gumroad_product_id}`);
   } else {
     console.error('Gumroad publish failed:', result);
+    logError(job, 'Gumroad publish failed', result);
   }
   return job;
 }

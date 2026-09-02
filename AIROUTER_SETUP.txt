@@ -1,0 +1,31 @@
+Airouter Auto-Start Setup
+=========================
+
+What you need to do (one-time, requires sudo)
+----------------------------------------------
+
+Run this command in your terminal:
+
+  sudo env PATH=/home/danao21/.npm-global/bin:$PATH /home/danao21/.npm-global/lib/node_modules/pm2/bin/pm2 startup systemd -u danao21 --hp /home/danao21
+
+This creates a systemd service that starts PM2 on boot.
+
+
+What's already done
+-------------------
+- PM2 installed
+- Airouter running on port 8787
+- Crontab entry added for backup auto-start
+- autorestart: true (auto-restarts on crash)
+
+
+Verify it works
+---------------
+  /home/danao21/.npm-global/bin/pm2 status
+
+
+Manual controls
+---------------
+  /home/danao21/.npm-global/bin/pm2 restart airouter
+  /home/danao21/.npm-global/bin/pm2 stop airouter
+  /home/danao21/.npm-global/bin/pm2 logs airouter
