@@ -1,0 +1,72 @@
+GitHub CLI Authentication Setup
+================================
+
+1. Authenticate with GitHub
+---------------------------
+   /run/media/danao21/danao21/tmp/gh auth login
+
+   When prompted:
+   - What account? > GitHub.com
+   - Preferred protocol? > HTTPS
+   - Authenticate Git? > Yes
+   - How would you like to authenticate? > Login with a web browser
+
+   Follow the URL provided and enter the code.
+
+
+2. Alternative: Use a Personal Access Token
+-------------------------------------------
+   a) Go to https://github.com/settings/tokens
+   b) Click "Generate new token (classic)"
+   c) Select scopes:
+      - repo (full control)
+      - admin:repo_hook
+   d) Copy the token
+   e) Run:
+
+      /run/media/danao21/danao21/tmp/gh auth login --with-token
+
+   f) Paste your token and press Enter
+
+
+3. Verify Authentication
+------------------------
+   /run/media/danao21/danao21/tmp/gh auth status
+
+
+4. Create Repository and Push
+-----------------------------
+   cd /run/media/danao21/danao21/gumroad_agent/gumroad_agent
+
+   # Create new repo and push
+   /run/media/danao21/danao21/tmp/gh repo create gumroad-agent --public --source=. --remote=origin --push
+
+   # Or if repo already exists
+   git remote add origin https://github.com/YOUR-USERNAME/REPO-NAME.git
+   git push -u origin main
+
+
+5. Update config.json
+---------------------
+   Edit config.json and set:
+   {
+     "github": {
+       "username": "YOUR-USERNAME",
+       "repo": "YOUR-REPO-NAME"
+     }
+   }
+
+
+6. Test Auto Upload
+-------------------
+   node workflow.js create "test template"
+
+   This will:
+   - Push source code to main branch
+   - Deploy template to gh-pages branch
+
+
+Add gh to PATH (optional)
+-------------------------
+   echo 'export PATH="$PATH:/run/media/danao21/danao21/tmp"' >> ~/.bashrc
+   source ~/.bashrc
