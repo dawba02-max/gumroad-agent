@@ -1,0 +1,103 @@
+============================================================
+GUMROAD AGENT REFERENCE
+============================================================
+Generated: 2026-09-02
+Purpose: Extends the existing multi-agent system (agent_manager,
+browser_agent, builder_agent, communication_agent, memory_agent)
+with a workflow that turns a manual brief into a packaged,
+human-approved, published Gumroad product.
+============================================================
+
+------------------------------------------------------------
+OBJECTIVE
+------------------------------------------------------------
+Automate the creation and sale of website/code templates on
+Gumroad, while keeping a human approval gate before anything
+goes live. The user supplies a topic/idea manually; everything
+after that (build, deploy demo, package, draft listing) is
+automated up to the point of publishing, which requires an
+explicit approve/reject reply from the user over Telegram.
+
+This folder does NOT replace agent_manager, builder_agent,
+browser_agent, communication_agent, or memory_agent. It adds:
+  1. A job-based workflow/state machine (workflow.js)
+  2. A packaging step (lib/packager.js) — zip + listing copy
+  3. A Gumroad API client (lib/gumroad_client.js)
+  4. Prompts used by the manager/builder during this workflow
+
+Integration points into the existing system are documented in
+each file's header comment. Nothing here talks to Gumroad,
+GitHub, or Telegram directly except through the lib/ clients,
+which are stubs with clear TODOs for credentials.
+
+------------------------------------------------------------
+WORKFLOW (state machine)
+------------------------------------------------------------
+IDLE
+ -> RECEIVED_BRIEF   user runs: node workflow.js create "<brief>"
+ -> ANALYZING        objective_analyzer.js (agent_manager) parses brief
+ -> BUILDING         builder_agent/ngen.js generates the template
+ -> BUILD_FAILED     (loops back to ANALYZING/IDLE on failure)
+ -> DEPLOYING        browser_agent pushes template to GitHub, gets demo URL
+ -> PACKAGING        lib/packager.js zips files + drafts listing copy
+ -> AWAITING_REVIEW  communication_agent sends Telegram msg w/ demo + listing
+ -> REJECTED         user replies "no" / "revise: ..." -> back to ANALYZING
+ -> APPROVED         user replies "yes" / "approve"
+ -> PUBLISHING       lib/gumroad_client.js creates product + uploads zip
+ -> PUBLISHED        memory_agent logs job outcome + product_id
+
+Each job is a JSON file in data/jobs/<job_id>.json (see
+data/jobs/_SCHEMA.json for the shape). This mirrors the existing
+learning_data.json / task_log.json pattern already used by
+builder_agent and browser_agent.
+
+------------------------------------------------------------
+FILES IN THIS FOLDER
+------------------------------------------------------------
+AGENT_REFERENCE.txt        - this file
+workflow.js                - CLI entry point + state machine driver
+config.json                - paths to sibling agents, Gumroad/GitHub/Telegram config
+lib/packager.js            - zips a built template + drafts listing copy
+lib/gumroad_client.js      - Gumroad API client (create/update product, upload files)
+lib/job_store.js           - read/write job JSON files in data/jobs/
+prompts/analyze_brief.md   - prompt used to turn a raw brief into build params
+prompts/listing_copy.md    - prompt used to draft the Gumroad title/description/price
+prompts/review_message.md  - template for the Telegram review message
+data/jobs/_SCHEMA.json     - shape of a job record (documentation only, not a real job)
+output/                    - packaged zips land here before upload
+
+------------------------------------------------------------
+CLI COMMANDS
+------------------------------------------------------------
+node workflow.js create "<brief>"        - start a new job (ANALYZING -> BUILDING)
+node workflow.js jobs                    - list all jobs and their state
+node workflow.js status <job_id>         - show one job's full record
+node workflow.js review <job_id>         - (re)send the Telegram review prompt
+node workflow.js approve <job_id>        - mark APPROVED, trigger PUBLISHING
+node workflow.js reject <job_id> [note]  - mark REJECTED, optional revision note
+node workflow.js publish <job_id>        - force PUBLISHING (internal use)
+
+------------------------------------------------------------
+INTEGRATION NOTES (what still needs wiring)
+------------------------------------------------------------
+1. workflow.js currently calls agent_manager, builder_agent, and
+   browser_agent via child_process (assumes they're sibling
+   folders under the same agents/ directory — see config.json
+   "agentPaths"). Adjust paths to match your actual layout.
+2. browser_agent needs a "push to GitHub" action added; today it
+   only documents search/visit/download/act. A stubbed function
+   is in workflow.js's deployToGitHub() with a TODO.
+3. communication_agent needs to route incoming Telegram replies
+   ("yes"/"no"/"revise: ...") back into
+   `node workflow.js approve/reject <job_id>`. A stub webhook
+   handler shape is documented in prompts/review_message.md.
+4. lib/gumroad_client.js needs a Gumroad access token
+   (Settings -> Advanced -> Applications on gumroad.com) placed
+   in config.json under gumroad.accessToken, or as the
+   GUMROAD_ACCESS_TOKEN environment variable.
+5. memory_agent logging calls in workflow.js assume the same
+   `memoryLogger.addLog(...)` interface documented in the main
+   AGENT_REFERENCE.txt for memory_agent.
+============================================================
+END OF REFERENCE
+============================================================

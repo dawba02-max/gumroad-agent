@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Output files
+output/
+data/jobs/
+data/deploy/
+
+# Generated templates (built at runtime)
+*.html
+!prompts/*.md
+!lib/*.js
+!workflow.js
+
+# Environment and secrets
+.env
+.env.local
+config.local.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*

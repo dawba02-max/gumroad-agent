@@ -1,0 +1,30 @@
+{
+  "agentPaths": {
+    "_comment": "Paths to agent directories. These are relative to the gumroad_agent directory.",
+    "agentManager": "../../agents/agent_manager",
+    "browserAgent": "../../agents/browser_agent",
+    "builderAgent": "../../agents/builder_agent",
+    "memoryAgent": "../../agents/memory_agent"
+  },
+  "github": {
+    "_comment": "Used by deployToGitHub() in workflow.js for demo hosting.",
+    "username": "",
+    "repo": "",
+    "branch": "gh-pages",
+    "pagesBaseUrl": ""
+  },
+  "gumroad": {
+    "_comment": "Get an access token at gumroad.com/settings/advanced under Applications. Prefer the GUMROAD_ACCESS_TOKEN env var over storing it here.",
+    "accessToken": "",
+    "defaultPrice": 9
+  },
+  "workflow": {
+    "jobsDir": "./data/jobs",
+    "outputDir": "./output"
+  },
+  "airouter": {
+    "_comment": "Airouter endpoint for listing copy generation.",
+    "url": "http://localhost:8787/v1/chat/completions",
+    "model": "builder"
+  }
+}
