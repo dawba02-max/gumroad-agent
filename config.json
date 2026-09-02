@@ -8,8 +8,8 @@
   },
   "github": {
     "_comment": "GitHub config for source repo + Pages deploy. Set username and repo to enable auto-upload.",
-    "username": "",
-    "repo": "",
+    "username": "dawba02-max",
+    "repo": "gumroad-agent",
     "branch": "main",
     "pagesBranch": "gh-pages"
   },
