@@ -1,1 +1,14 @@
-/* auto */
+/* Classic Cuts template — small custom layer on top of Tailwind.
+   Brand colors live in the tailwind.config block in each page <head>.
+   Swap primary/accent hex values there to rebrand. */
+
+html { scroll-behavior: smooth; }
+
+/* Anchor offset so the sticky header never covers section tops */
+section[id], footer[id], main[id] { scroll-margin-top: 130px; }
+
+/* Fixed call button + back-to-top already styled inline; keep above content */
+#back-to-top { transition: opacity .25s ease, visibility .25s; }
+
+/* Gallery images: uniform crop without distortion */
+.gallery-item img { aspect-ratio: 4 / 3; }
