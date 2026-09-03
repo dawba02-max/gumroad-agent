@@ -317,11 +317,9 @@ function deployToPages(job, username, repo, mainBranch) {
     execSync('git config user.email "dawba02@gmail.com"', { cwd: pagesDir, stdio: 'pipe' });
     execSync('git config user.name "danao21"', { cwd: pagesDir, stdio: 'pipe' });
     
-    // Copy job files to pages directory
-    const files = fs.readdirSync(jobFilesDir);
-    for (const file of files) {
-      fs.copyFileSync(path.join(jobFilesDir, file), path.join(pagesDir, file));
-    }
+    // Copy job files recursively (handles assets/ subdirs)
+    execSync(`cp -r "${jobFilesDir}"/* "${pagesDir}"/`, {stdio:'pipe'});
+    // also ensure hidden files handled? cp above covers
     
     // Create index.html redirect if it doesn't exist
     const indexFile = path.join(pagesDir, 'index.html');
