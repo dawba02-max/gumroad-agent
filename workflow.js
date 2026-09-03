@@ -356,6 +356,31 @@ Reply:
   console.log('--- REVIEW REQUEST ---');
   console.log(message);
   console.log('----------------------');
+  // Wire to Telegram via communication_agent (fire-and-forget, console fallback already done)
+  try {
+    const commAgentPath = path.resolve(__dirname, '../agents/communication_agent');
+    const commConfigPath = path.join(commAgentPath, 'config.json');
+    if (fs.existsSync(commConfigPath)) {
+      const commConfig = JSON.parse(fs.readFileSync(commConfigPath, 'utf8'));
+      const targetChatId = commConfig.channels?.telegram?.allowedChatIds?.[0];
+      if (targetChatId) {
+        try {
+          const Agent = require(path.join(commAgentPath, 'agent.js'));
+          const agent = new Agent();
+          agent.sendTelegram(String(targetChatId), message).then(r => {
+            console.log(`[telegram] review sent messageId ${r.messageId}`);
+            memoryLogger.addLog('gumroad_agent', job.job_id, 'Review sent via Telegram', { messageId: r.messageId, chatId: targetChatId });
+          }).catch(e => console.error('[telegram] send failed', e.message));
+        } catch (e) { console.error('[telegram] init failed', e.message); }
+        const pendingPath = path.join(__dirname, 'data', 'pending_review.json');
+        let pending = {};
+        try { pending = JSON.parse(fs.readFileSync(pendingPath, 'utf8')); } catch {}
+        pending[String(targetChatId)] = job.job_id;
+        pending[job.job_id] = String(targetChatId);
+        fs.writeFileSync(pendingPath, JSON.stringify(pending, null, 2));
+      }
+    }
+  } catch (e) { console.error('[telegram] wiring error', e.message); }
   logToMemory(job, 'Sent for review');
 }
 
