@@ -1,0 +1,85 @@
+name: CI — Test Website Before Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-and-validate:
+    name: Build, HTML Validate & Link Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+
+      - name: Install validator tools
+        run: npm install -g html-validator-cli 2>/dev/null || true
+
+      - name: Check HTML files exist
+        run: |
+          ls -lh templates/realestate-pro-2026/ || echo "no output"
+          test -f templates/realestate-pro-2026/index.html || (echo "missing template" && exit 1)
+
+      - name: Proof HTML (Nu Validator + HTMLProofer)
+        uses: anishathalye/proof-html@v2
+        with:
+          directory: ./templates/realestate-pro-2026
+          check_html: true
+          check_css: true
+          enforce_https: false
+          ignore_missing_alt: false
+          check_external_hash: false
+          # ignore pexels/tailwind CDN in CI (allow external)
+          ignore_url: |
+            https://cdn.tailwindcss.com/
+            https://images.pexels.com/
+
+  lighthouse:
+    name: Lighthouse CI (Perf, A11y, SEO)
+    runs-on: ubuntu-latest
+    needs: build-and-validate
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+
+      - name: Install http-server and wait-on
+        run: npm install -g http-server wait-on
+
+      - name: Start local server
+        run: |
+          npx http-server templates/realestate-pro-2026 -p 8080 --silent &
+          npx wait-on http://localhost:8080 --timeout 30000
+          curl -s -o /dev/null -w "HTTP %{http_code}\n" http://localhost:8080/index.html
+
+      - name: Audit URLs with Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v12
+        with:
+          urls: |
+            http://localhost:8080/index.html
+            http://localhost:8080/listings.html
+            http://localhost:8080/agents.html
+            http://localhost:8080/contact.html
+            http://localhost:8080/admin.html
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+          runs: 3
+
+      - name: W3C Nu HTML Validation (extra)
+        run: |
+          for p in index.html listings.html agents.html contact.html admin.html; do
+            echo "Validating $p"
+            curl -s -H "User-Agent: GitHubActions" "https://validator.w3.org/nu/?doc=http://localhost:8080/$p&out=json" | head -c 500 || true
+            sleep 2
+          done
+
+      - name: pa11y WCAG2AA
+        run: |
+          npm install -g pa11y
+          pa11y --standard WCAG2AA http://localhost:8080/index.html || true
