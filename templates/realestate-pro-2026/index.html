@@ -160,12 +160,21 @@ document.getElementById('featured').innerHTML=listings.slice(0,3).map(l=>`
     </a>
   </div>
 
-  <button type="button" id="back-to-top" class="fixed bottom-6 left-6 z-30 w-12 h-12 bg-white border border-slate-200 text-slate-600 hover:text-primary rounded-full shadow-lg flex items-center justify-center transition-all opacity-0 invisible" aria-label="Back to top">
+  <div class="mobile-bottom lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg p-3 flex gap-2 z-40"><a href="tel:+15551234567" class="flex-1 bg-[#1e3a5f] text-white text-center py-3 rounded-lg font-semibold">📞 Call</a><a href="listings.html" class="flex-1 bg-[#d4a574] text-white text-center py-3 rounded-lg font-semibold">Search</a></div><button type="button" id="back-to-top" class="fixed bottom-6 left-6 z-30 w-12 h-12 bg-white border border-slate-200 text-slate-600 hover:text-primary rounded-full shadow-lg flex items-center justify-center transition-all opacity-0 invisible" aria-label="Back to top">
     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path>
     </svg>
   </button>
 
-  <script src="assets/js/main.js"></script>
+  <script>
+document.addEventListener('DOMContentLoaded',()=>{
+  const t=document.querySelector('.mobile-nav-toggle');
+  const m=document.querySelector('.mobile-nav');
+  const c=document.querySelector('.mobile-nav-close');
+  if(t&&m){ t.addEventListener('click',()=>{m.classList.remove('hidden'); t.setAttribute('aria-expanded','true')});}
+  if(c&&m){ c.addEventListener('click',()=>{m.classList.add('hidden'); document.querySelector('.mobile-nav-toggle')?.setAttribute('aria-expanded','false')}); m.addEventListener('click',(e)=>{if(e.target===m) m.classList.add('hidden')});}
+});
+</script>
+<script src="assets/js/main.js"></script>
 </body>
 </html>

@@ -145,6 +145,15 @@
     </svg>
   </button>
 
-  <script src="assets/js/main.js"></script>
+  <script>
+document.addEventListener('DOMContentLoaded',()=>{
+  const t=document.querySelector('.mobile-nav-toggle');
+  const m=document.querySelector('.mobile-nav');
+  const c=document.querySelector('.mobile-nav-close');
+  if(t&&m){ t.addEventListener('click',()=>{m.classList.remove('hidden'); t.setAttribute('aria-expanded','true')});}
+  if(c&&m){ c.addEventListener('click',()=>{m.classList.add('hidden'); document.querySelector('.mobile-nav-toggle')?.setAttribute('aria-expanded','false')}); m.addEventListener('click',(e)=>{if(e.target===m) m.classList.add('hidden')});}
+});
+</script>
+<script src="assets/js/main.js"></script>
 </body>
 </html>
