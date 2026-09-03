@@ -356,22 +356,25 @@ Reply:
   console.log('--- REVIEW REQUEST ---');
   console.log(message);
   console.log('----------------------');
-  // Wire to Telegram via communication_agent (fire-and-forget, console fallback already done)
+  // Wire to Telegram via communication_agent (synchronous, ensures delivery before process exit)
   try {
     const commAgentPath = path.resolve(__dirname, '../agents/communication_agent');
     const commConfigPath = path.join(commAgentPath, 'config.json');
     if (fs.existsSync(commConfigPath)) {
       const commConfig = JSON.parse(fs.readFileSync(commConfigPath, 'utf8'));
       const targetChatId = commConfig.channels?.telegram?.allowedChatIds?.[0];
-      if (targetChatId) {
+      const token = commConfig.channels?.telegram?.botToken || process.env.TELEGRAM_BOT_TOKEN;
+      if (targetChatId && token) {
+        // synchronous send via curl (blocks until Telegram confirms)
         try {
-          const Agent = require(path.join(commAgentPath, 'agent.js'));
-          const agent = new Agent();
-          agent.sendTelegram(String(targetChatId), message).then(r => {
-            console.log(`[telegram] review sent messageId ${r.messageId}`);
-            memoryLogger.addLog('gumroad_agent', job.job_id, 'Review sent via Telegram', { messageId: r.messageId, chatId: targetChatId });
-          }).catch(e => console.error('[telegram] send failed', e.message));
-        } catch (e) { console.error('[telegram] init failed', e.message); }
+          const tmp = require('os').tmpdir() + '/tg_msg_' + job.job_id + '.json';
+          fs.writeFileSync(tmp, JSON.stringify({ chat_id: targetChatId, text: message }));
+          const out = execSync(`curl -s -X POST "https://api.telegram.org/bot${token}/sendMessage" -H "Content-Type: application/json" -d @"${tmp}"`, { encoding: 'utf8', timeout: 12000 });
+          fs.unlinkSync(tmp);
+          const j = JSON.parse(out);
+          if (j.ok) { console.log(`[telegram] review sent messageId ${j.result.message_id}`); memoryLogger.addLog('gumroad_agent', job.job_id, 'Review sent via Telegram', { messageId: j.result.message_id, chatId: targetChatId }); }
+          else console.error('[telegram] api error', out.slice(0,400));
+        } catch (e) { console.error('[telegram] send failed', e.message.slice(0,300)); }
         const pendingPath = path.join(__dirname, 'data', 'pending_review.json');
         let pending = {};
         try { pending = JSON.parse(fs.readFileSync(pendingPath, 'utf8')); } catch {}
