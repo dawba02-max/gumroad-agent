@@ -24,6 +24,7 @@
   </script>
   <link rel="stylesheet" href="assets/css/style.css">
 </head>
+<div class="bg-amber-100 text-amber-900 text-center text-sm py-2">🔒 Demo Mode — <a href="#" class="underline font-semibold">Buy Full License $49</a></div>
 <body class="font-sans text-slate-800 bg-white">
   <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 bg-primary text-white px-4 py-2 rounded z-50">Skip to main content</a>
 
@@ -90,10 +91,56 @@
 <section class="max-w-6xl mx-auto px-6 py-16">
   <div class="flex justify-between items-end"><h2 class="text-3xl font-bold">Featured Listings</h2><a href="listings.html" class="text-[#1e3a5f] font-medium">View all →</a></div>
   <div class="grid md:grid-cols-3 gap-6 mt-8" id="featured"></div>
-  <div class="grid grid-cols-3 gap-6 mt-12 text-center">
-    <div><div class="text-4xl font-bold text-[#1e3a5f]">10k+</div><div class="text-slate-600">Properties Sold</div></div>
-    <div><div class="text-4xl font-bold text-[#1e3a5f]">98%</div><div class="text-slate-600">Client Satisfaction</div></div>
-    <div><div class="text-4xl font-bold text-[#1e3a5f]">15yr</div><div class="text-slate-600">Market Experience</div></div>
+  <div class="grid grid-cols-4 gap-6 mt-12 text-center">
+    <div><div class="text-4xl font-bold text-[#1e3a5f]"><span data-counter="10000">0</span>+</div><div class="text-slate-600">Properties Sold</div></div>
+    <div><div class="text-4xl font-bold text-[#1e3a5f]"><span data-counter="500">0</span>+</div><div class="text-slate-600">Happy Clients</div></div>
+    <div><div class="text-4xl font-bold text-[#1e3a5f]"><span data-counter="98">0</span>%</div><div class="text-slate-600">Satisfaction</div></div>
+    <div><div class="text-4xl font-bold text-[#1e3a5f]"><span data-counter="15">0</span>yr</div><div class="text-slate-600">Experience</div></div>
+  </div>
+  <script>
+  document.addEventListener('DOMContentLoaded',()=>{
+    document.querySelectorAll('[data-counter]').forEach(el=>{
+      let target=parseInt(el.dataset.counter), cur=0, step=Math.ceil(target/40);
+      let id=setInterval(()=>{cur+=step; if(cur>=target){cur=target; clearInterval(id);} el.textContent=cur;},30);
+    });
+  });
+  </script>
+</section>
+<section class="max-w-6xl mx-auto px-6 py-16">
+  <h2 class="text-3xl font-bold text-center">See the Transformation</h2>
+  <p class="text-center text-slate-600 mt-2">Real renovations from our clients</p>
+  <div class="grid md:grid-cols-2 gap-8 mt-8">
+    <div class="bg-white rounded-xl shadow overflow-hidden">
+      <div class="relative h-64 overflow-hidden" id="ba1">
+        <img src="https://images.pexels.com/photos/1396122/pexels-photo-1396122.jpeg?auto=compress&w=600" alt="After renovation" class="absolute inset-0 w-full h-full object-cover">
+        <img src="https://images.pexels.com/photos/1643383/pexels-photo-1643383.jpeg?auto=compress&w=600" alt="Before renovation" class="absolute inset-0 w-full h-full object-cover" style="clip-path: inset(0 50% 0 0)">
+        <input type="range" min="0" max="100" value="50" class="absolute bottom-4 left-1/2 -translate-x-1/2 w-3/4" oninput="this.previousElementSibling.style.clipPath='inset(0 '+ (100-this.value) +'% 0 0)'">
+        <span class="absolute top-3 left-3 bg-black/60 text-white text-xs px-2 py-1 rounded">Before</span><span class="absolute top-3 right-3 bg-[#d4a574] text-white text-xs px-2 py-1 rounded">After</span>
+      </div>
+      <div class="p-4"><h3 class="font-semibold">Kitchen Remodel — San Francisco</h3><p class="text-sm text-slate-600">Drag slider to compare</p></div>
+    </div>
+    <div class="bg-white rounded-xl shadow overflow-hidden">
+      <div class="relative h-64 overflow-hidden">
+        <img src="https://images.pexels.com/photos/2102587/pexels-photo-2102587.jpeg?auto=compress&w=600" alt="After" class="absolute inset-0 w-full h-full object-cover">
+        <img src="https://images.pexels.com/photos/106399/pexels-photo-106399.jpeg?auto=compress&w=600" alt="Before" class="absolute inset-0 w-full h-full object-cover" style="clip-path: inset(0 50% 0 0)" id="ba2b">
+        <input type="range" min="0" max="100" value="50" class="absolute bottom-4 left-1/2 -translate-x-1/2 w-3/4" oninput="document.getElementById('ba2b').style.clipPath='inset(0 '+ (100-this.value) +'% 0 0)'">
+        <span class="absolute top-3 left-3 bg-black/60 text-white text-xs px-2 py-1 rounded">Before</span><span class="absolute top-3 right-3 bg-[#d4a574] text-white text-xs px-2 py-1 rounded">After</span>
+      </div>
+      <div class="p-4"><h3 class="font-semibold">Living Room — Los Angeles</h3><p class="text-sm text-slate-600">Drag slider to compare</p></div>
+    </div>
+  </div>
+  <div class="text-center mt-6"><a href="listings.html" class="text-[#1e3a5f] font-medium">View Full Gallery →</a></div>
+</section>
+<section class="bg-white py-16">
+  <div class="max-w-6xl mx-auto px-6">
+    <h2 class="text-3xl font-bold text-center">What Our Clients Say</h2>
+    <p class="text-center text-slate-600 mt-2">Don't just take our word for it</p>
+    <div class="grid md:grid-cols-3 gap-6 mt-8">
+      <div class="bg-slate-50 p-6 rounded-xl"><div class="text-amber-400">★★★★★</div><p class="mt-2 text-slate-700">"EstatePro found us our dream home in 2 weeks. The 3D tours saved us 10 viewings!"</p><div class="mt-3 flex items-center gap-3"><img src="https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&w=100" alt="Client" class="w-10 h-10 rounded-full"><div><div class="font-semibold text-sm">Jennifer M.</div><div class="text-xs text-slate-500">Verified Buyer — San Francisco</div></div></div></div>
+      <div class="bg-slate-50 p-6 rounded-xl"><div class="text-amber-400">★★★★★</div><p class="mt-2 text-slate-700">"Mortgage calculator was spot-on. Agent was super responsive."</p><div class="mt-3 flex items-center gap-3"><img src="https://images.pexels.com/photos/614810/pexels-photo-614810.jpeg?auto=compress&w=100" alt="Client" class="w-10 h-10 rounded-full"><div><div class="font-semibold text-sm">Robert K.</div><div class="text-xs text-slate-500">Verified Buyer — Los Angeles</div></div></div></div>
+      <div class="bg-slate-50 p-6 rounded-xl"><div class="text-amber-400">★★★★★</div><p class="mt-2 text-slate-700">"We sold above asking in 5 days. Professional photos + staging advice was gold."</p><div class="mt-3 flex items-center gap-3"><img src="https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&w=100" alt="Client" class="w-10 h-10 rounded-full"><div><div class="font-semibold text-sm">Sarah L.</div><div class="text-xs text-slate-500">Verified Seller — Miami</div></div></div></div>
+    </div>
+    <div class="text-center mt-6"><a href="agents.html" class="text-[#1e3a5f] font-medium">Read All Reviews →</a></div>
   </div>
 </section>
 <section class="bg-slate-50 py-16">
@@ -124,6 +171,22 @@ document.getElementById('featured').innerHTML=listings.slice(0,3).map(l=>`
 </script>
 </main>
 
+<section id="booking" class="bg-gradient-to-br from-[#1e3a5f] to-[#2c5282] text-white py-16">
+  <div class="max-w-4xl mx-auto px-6 text-center">
+    <h2 class="text-4xl font-bold font-display">Ready to Find Your Home?</h2>
+    <p class="mt-2 text-slate-200">Book a viewing today — we can't wait to show you!</p>
+    <form class="mt-6 bg-white rounded-2xl p-6 text-left grid md:grid-cols-2 gap-4 text-slate-800" onsubmit="event.preventDefault(); alert('Booking request sent! We will confirm within 2 hours.');">
+      <input type="text" placeholder="Full Name" required class="border rounded-lg px-4 py-3">
+      <input type="tel" placeholder="Phone" required class="border rounded-lg px-4 py-3">
+      <input type="email" placeholder="Email" required class="border rounded-lg px-4 py-3">
+      <select class="border rounded-lg px-4 py-3"><option>Buy</option><option>Sell</option><option>Rent</option><option>Viewing</option></select>
+      <input type="date" class="border rounded-lg px-4 py-3 md:col-span-2">
+      <textarea placeholder="Message (preferred area, budget)" rows="3" class="border rounded-lg px-4 py-3 md:col-span-2"></textarea>
+      <button type="submit" class="md:col-span-2 bg-[#1e3a5f] hover:bg-[#152a45] text-white font-semibold py-3 rounded-lg">Book Viewing →</button>
+    </form>
+    <div class="mt-4 flex justify-center gap-4 text-sm"><a href="tel:+15551234567" class="underline">Call (555)&nbsp;123&#8209;4567</a><span>•</span><a href="contact.html" class="underline">Contact Us</a></div>
+  </div>
+</section>
   <footer id="contact" aria-label="Site footer" class="bg-slate-900 text-white">
     <div class="max-w-7xl mx-auto px-4 py-12">
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
