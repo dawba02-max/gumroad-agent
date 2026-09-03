@@ -135,47 +135,46 @@ function analyzeBrief(job) {
   return job;
 }
 
-function buildTemplate(job) {
+async function buildTemplate(job) {
   jobStore.transition(job, 'BUILDING');
-  
-  // Create output directory for this job
   const outputDir = path.join(AGENT_PATHS.builderAgent, 'output', job.job_id);
-  if (!fs.existsSync(outputDir)) {
-    fs.mkdirSync(outputDir, { recursive: true });
+  if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
+  // Try schema-based build first (TASK1 generalized)
+  try{
+    const {generateSchema}=require(path.join(AGENT_PATHS.builderAgent,'schema_generator.js'));
+    const ngen=require(path.join(AGENT_PATHS.builderAgent,'ngen.js'));
+    const schema=await generateSchema(job.brief);
+    job.schema = schema;
+    job.template_type = schema.business_type || job.template_type;
+    jobStore.saveJob(job);
+    const res=await ngen.generateSiteFromSchema(schema, {price: config.gumroad.defaultPrice||49, gumroadUrl: job.demo_url||'#', brand: schema.business_type}, job.job_id);
+    logToMemory(job, 'Template built via schema_generator + generateSiteFromSchema', {outputDir: res.outDir, pages: res.pages});
+    // rewrite pexels already done inside generateSiteFromSchema; ensure demo badge all pages already injected
+    return res.outDir;
+  }catch(e){
+    logError(job, `schema build failed (${e.message}), falling back to legacy`);
   }
-  
   try {
-    // Use builder_agent's module API directly
     const ngen = require(path.join(AGENT_PATHS.builderAgent, 'ngen.js'));
     const { title, description, activePage, body, filename } = job.build_params;
-    
-    // Generate the HTML page
-    const html = ngen.generatePage(title, description, activePage, body, filename);
-    
-    // Write to job output directory
+    let html = ngen.generatePage(title, description, activePage, body, filename);
+    try{ const {injectDemoBadge}=require(path.join(AGENT_PATHS.builderAgent,'shared','demo_badge.js')); html=injectDemoBadge(html, config.gumroad.defaultPrice||49, job.demo_url||'#'); }catch{}
+    try{ const {rewritePexelsToLocal}=require(path.join(AGENT_PATHS.builderAgent,'image_sourcing.js')); html=rewritePexelsToLocal(html, {}); }catch{}
     const filePath = path.join(outputDir, `${filename}.html`);
     fs.writeFileSync(filePath, html);
-    
-    logToMemory(job, 'Template built via ngen module', { outputDir, filename, size: html.length });
+    // ensure assets dirs
+    const cssDir=path.join(outputDir,'assets/css'), jsDir=path.join(outputDir,'assets/js');
+    if(!fs.existsSync(cssDir)) fs.mkdirSync(cssDir,{recursive:true});
+    if(!fs.existsSync(jsDir)) fs.mkdirSync(jsDir,{recursive:true});
+    if(!fs.existsSync(path.join(cssDir,'style.css'))) fs.writeFileSync(path.join(cssDir,'style.css'),'');
+    if(!fs.existsSync(path.join(jsDir,'main.js'))) fs.writeFileSync(path.join(jsDir,'main.js'),'');
+    logToMemory(job, 'Template built via legacy ngen', { outputDir, filename, size: html.length });
   } catch (error) {
     logError(job, `builder_agent failed: ${error.message}`);
-    // Create a minimal placeholder template so the pipeline can continue
-    const placeholderHtml = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${job.build_params.title}</title>
-</head>
-<body>
-  <h1>${job.build_params.title}</h1>
-  <p>${job.build_params.description}</p>
-</body>
-</html>`;
+    const placeholderHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${job.build_params.title}</title></head><body><h1>${job.build_params.title}</h1><p>${job.build_params.description}</p></body></html>`;
     fs.writeFileSync(path.join(outputDir, `${job.build_params.filename}.html`), placeholderHtml);
     logToMemory(job, 'Created placeholder template', { outputDir });
   }
-  
   logToMemory(job, 'Template build complete', { sourceDir: outputDir });
   return outputDir;
 }
@@ -455,6 +454,55 @@ async function publishToGumroad(job) {
 // Command handlers
 // ------------------------------------------------------------
 
+async function verifyWithRetry(job, sourceDir) {
+  const verifier = require('./lib/verifier');
+  const maxAttempts = 3;
+  job.attempts = job.attempts || 0;
+  job.verify_history = job.verify_history || [];
+  for(let attempt=1; attempt<=maxAttempts; attempt++){
+    jobStore.transition(job, 'VERIFYING');
+    const res = await verifier.verifyJob(job, sourceDir);
+    job.verify_history.push({attempt, passed: res.passed, failures: res.failures, warnings: res.warnings, ts: new Date().toISOString()});
+    jobStore.saveJob(job);
+    if(res.passed){
+      logToMemory(job, `VERIFYING passed attempt ${attempt}`, {warnings: res.warnings});
+      return {passed:true, sourceDir};
+    }
+    logError(job, `VERIFYING failed attempt ${attempt}: ${res.failures.join('; ').slice(0,400)}`);
+    if(attempt===maxAttempts){
+      jobStore.transition(job, 'BUILD_FAILED');
+      job.failures = res.failures;
+      jobStore.saveJob(job);
+      memoryLogger.addError('gumroad_agent', job.job_id, 'BUILD_FAILED after 3 verify attempts', {failures: res.failures});
+      // notify Telegram
+      try{
+        const cfg=require(path.join(AGENT_PATHS.memoryAgent,'..','communication_agent','config.json'));
+        const token=cfg.channels.telegram.botToken; const chat=cfg.channels.telegram.allowedChatIds[0];
+        if(token&&chat) require('child_process').execSync(`curl -s -X POST "https://api.telegram.org/bot${token}/sendMessage" -H "Content-Type: application/json" -d '${JSON.stringify({chat_id:chat, text:`❌ Job ${job.job_id} BUILD_FAILED after 3 attempts\nBrief: ${job.brief}\nFailures: ${res.failures.slice(0,3).join('; ')}`}).replace(/'/g,"'\\''")}'`,{stdio:'pipe'});
+      }catch{}
+      return {passed:false, failures: res.failures};
+    }
+    // self-heal: regenerate schema (fresh airouter) and rebuild
+    logToMemory(job, `Self-heal retry ${attempt+1}/${maxAttempts} — regenerating schema`);
+    try{
+      const {generateSchema}=require(path.join(AGENT_PATHS.builderAgent,'schema_generator.js'));
+      const ngen=require(path.join(AGENT_PATHS.builderAgent,'ngen.js'));
+      const schema=await generateSchema(job.brief);
+      job.schema = schema;
+      jobStore.saveJob(job);
+      // clean output and rebuild
+      try{ require('child_process').execSync(`rm -rf "${sourceDir}"`); }catch{}
+      const out = require('path').join(AGENT_PATHS.builderAgent,'output',job.job_id);
+      const res2=await ngen.generateSiteFromSchema(schema, {price: config.gumroad.defaultPrice||49, gumroadUrl: job.demo_url||'#', brand: schema.business_type}, job.job_id);
+      sourceDir = res2.outDir;
+      jobStore.saveJob(job);
+      await deployToGitHub(job); // redeploy
+    }catch(e){
+      logError(job, `self-heal rebuild failed: ${e.message}`);
+    }
+  }
+}
+
 async function cmdCreate(brief) {
   if (!brief) {
     console.error('Usage: node workflow.js create "<brief>"');
@@ -462,8 +510,15 @@ async function cmdCreate(brief) {
   }
   let job = jobStore.createJob(brief);
   job = analyzeBrief(job);
-  const sourceDir = buildTemplate(job);
+  let sourceDir = await buildTemplate(job);
   await deployToGitHub(job);
+  // TASK4+5: verify with self-heal loop before packaging
+  const verifyRes = await verifyWithRetry(job, sourceDir);
+  if(!verifyRes.passed){
+    console.log(`Job ${job.job_id} BUILD_FAILED after verification retries. Check data/jobs/${job.job_id}.json`);
+    return;
+  }
+  sourceDir = verifyRes.sourceDir;
   packageAndDraftListing(job, sourceDir);
   sendForReview(job);
   console.log(`Job ${job.job_id} is now AWAITING_REVIEW.`);
