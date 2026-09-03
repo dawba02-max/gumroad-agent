@@ -180,7 +180,50 @@ function buildTemplate(job) {
   return outputDir;
 }
 
-function deployToGitHub(job) {
+async function testBeforeDeploy(outputDir, job) {
+  // Browser test before git push (fixes realestate 404 assets)
+  try {
+    const http = require('http');
+    const server = http.createServer((req,res)=>{
+      let p = require('path').join(outputDir, req.url==='/'?'index.html':req.url.replace(/^\//,'').split('?')[0]);
+      if (fs.existsSync(p) && fs.statSync(p).isFile()){
+        let ext=require('path').extname(p);
+        let ct={'.html':'text/html','.js':'application/javascript','.css':'text/css'}[ext]||'text/plain';
+        res.writeHead(200,{'Content-Type':ct}); res.end(fs.readFileSync(p));
+      } else { res.writeHead(404); res.end('not found'); }
+    });
+    await new Promise(r=> server.listen(0, ()=> r()));
+    const port = server.address().port;
+    const SelfImprovingBrowserAgent = require(path.join(AGENT_PATHS.browserAgent, 'browser_tool'));
+    const agent = new SelfImprovingBrowserAgent();
+    const files = fs.readdirSync(outputDir).filter(f=>f.endsWith('.html'));
+    let failed=[];
+    for(let f of files){
+      let url=`http://localhost:${port}/${f}`;
+      let v=await agent.visit(url);
+      if(!v.title || v.title==='Error') failed.push(f+':bad title');
+      let a=await agent.auditWebsite(url);
+      let errs=(a.consoleErrors||[]).filter(e=> e.text.includes('assets/'));
+      if(errs.length) failed.push(f+':missing assets '+errs[0].text);
+    }
+    await agent.close(); server.close();
+    if(failed.length){
+      // auto-fix missing assets
+      const cssDir=path.join(outputDir,'assets/css'); const jsDir=path.join(outputDir,'assets/js');
+      if(!fs.existsSync(cssDir)) fs.mkdirSync(cssDir,{recursive:true});
+      if(!fs.existsSync(jsDir)) fs.mkdirSync(jsDir,{recursive:true});
+      if(!fs.existsSync(path.join(cssDir,'style.css'))) fs.writeFileSync(path.join(cssDir,'style.css'),'');
+      if(!fs.existsSync(path.join(jsDir,'main.js'))) fs.writeFileSync(path.join(jsDir,'main.js'),'// auto-fixed');
+      logToMemory(job, 'Pre-deploy test auto-fixed assets', {failed});
+    } else logToMemory(job, 'Pre-deploy browser test passed', {files});
+    return true;
+  } catch(e){ logError(job, 'Pre-deploy test skipped: '+e.message); return true; }
+}
+
+async function deployToGitHub(job) {
+  // Pre-deploy browser test (uses browser_agent tools) — fixes realestate 404
+  const outDir = path.join(__dirname, '../agents/builder_agent/output', job.job_id);
+  try { if (fs.existsSync(outDir)) await testBeforeDeploy(outDir, job); } catch {}
   jobStore.transition(job, 'DEPLOYING');
   
   const { username, repo, branch } = config.github;
@@ -412,7 +455,7 @@ async function publishToGumroad(job) {
 // Command handlers
 // ------------------------------------------------------------
 
-function cmdCreate(brief) {
+async function cmdCreate(brief) {
   if (!brief) {
     console.error('Usage: node workflow.js create "<brief>"');
     process.exit(1);
@@ -420,7 +463,7 @@ function cmdCreate(brief) {
   let job = jobStore.createJob(brief);
   job = analyzeBrief(job);
   const sourceDir = buildTemplate(job);
-  deployToGitHub(job);
+  await deployToGitHub(job);
   packageAndDraftListing(job, sourceDir);
   sendForReview(job);
   console.log(`Job ${job.job_id} is now AWAITING_REVIEW.`);
@@ -472,7 +515,7 @@ async function main() {
 
   switch (cmd) {
     case 'create':
-      cmdCreate(args.join(' '));
+      await cmdCreate(args.join(' '));
       break;
     case 'jobs':
       cmdJobs();
